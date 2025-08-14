@@ -1,7 +1,9 @@
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
-group = "com.osacky.flank.gradle"
-version = "0.18.1-SNAPSHOT"
+//group = "com.osacky.flank.gradle"
+//version = "0.18.1-SNAPSHOT"
+group = "com.osacky.fladle"
+version = "0.18.1-slack01"
 description = "Easily Scale your Android Instrumentation Tests with Firebase Test Lab with Flank"
 
 repositories {
@@ -59,21 +61,15 @@ gradlePlugin {
 
 val isReleaseBuild : Boolean = !version.toString().endsWith("SNAPSHOT")
 
-val sonatypeUsername : String? by project
-val sonatypePassword : String? by project
-
 publishing {
   repositories {
-    repositories {
-      maven {
-        val releasesRepoUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
-        val snapshotsRepoUrl = uri("https://oss.sonatype.org/content/repositories/snapshots/")
-        url = if (isReleaseBuild) releasesRepoUrl else snapshotsRepoUrl
-        credentials {
-          username = sonatypeUsername
-          password = sonatypePassword
-        }
-      }
+    maven {
+      name = "SlackArtifactory"
+      setUrl("https://slack.jfrog.io/slack/libs-release-local")
+      credentials(PasswordCredentials::class)
+      // expects ~/.gradle/gradle.properties:
+      //   artifactory_user=YOUR_USER
+      //   artifactory_password=YOUR_API_KEY
     }
   }
   publications {
@@ -93,7 +89,7 @@ publishing {
 }
 
 signing {
-  isRequired = isReleaseBuild
+  isRequired = false
 }
 
 fun org.gradle.api.publish.maven.MavenPom.configureForFladle(pluginName: String) {
