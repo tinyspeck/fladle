@@ -2,7 +2,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 //group = "com.osacky.flank.gradle"
 //version = "0.18.1-SNAPSHOT"
-group = "com.osacky.fladle"
+group = "slack.internal.fladle"
 version = "0.18.1-slack01"
 description = "Easily Scale your Android Instrumentation Tests with Firebase Test Lab with Flank"
 
