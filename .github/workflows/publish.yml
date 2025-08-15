@@ -128,4 +128,4 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: bearer ${{ secrets.SLACK_OSS_GITHUB_TOKEN }}" \
             https://api.github.com/repos/tinyspeck/slack-android-ng/actions/workflows/update-dependency.yml/dispatches \
-            -d '{"ref":"main","inputs":{"coordinates":"fladle","version":"${{ env.NEW_VERSION }}","reviewers":"${{ github.actor }}","prDescription":""}}'
+            -d '{"ref":"master","inputs":{"coordinates":"fladle","version":"${{ env.NEW_VERSION }}","reviewers":"${{ github.actor }}","prDescription":""}}'

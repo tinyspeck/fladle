@@ -68,15 +68,8 @@ configure<PublishingExtension> {
       name = "SlackArtifactory"
       val url = "https://slack.jfrog.io/slack/libs-release-local"
       val snapshotUrl = "https://slack.jfrog.io/slack/libs-snapshot-local"
-      val testUrl = "https://httpbin.org/post"  // Fake URL for testing
       val versionName = findProperty("VERSION_NAME").toString()
-//      setUrl(if (versionName.endsWith("-SNAPSHOT")) snapshotUrl else url)
-
-      // Use fake URL if on test branch, otherwise use real URLs
-      val currentBranch = System.getenv("GITHUB_REF_NAME") ?: "unknown"
-      setUrl(if (currentBranch.contains("test")) testUrl 
-             else if (versionName.endsWith("-SNAPSHOT")) snapshotUrl 
-             else url)
+      setUrl(if (versionName.endsWith("-SNAPSHOT")) snapshotUrl else url)
       credentials(PasswordCredentials::class.java)
     }
   }
