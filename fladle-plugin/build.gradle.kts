@@ -130,11 +130,11 @@ tasks.withType(ValidatePlugins::class.java).configureEach {
 }
 
 // Ensure Java 11 Compatibility. See https://github.com/runningcode/fladle/issues/246
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-  kotlinOptions {
-    jvmTarget = "11"
-    languageVersion = "1.7"
-    apiVersion = "1.7"
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+  compilerOptions {
+    languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+    apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
   }
 }
 

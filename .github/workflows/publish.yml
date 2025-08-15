@@ -99,10 +99,10 @@ jobs:
           echo "Updated version to: $NEW_VERSION"
 
       - name: Build and test
-        run: ./gradlew check --no-daemon
+        run: ./gradlew check --no-daemon --no-configuration-cache
 
       - name: Upload archives
-        run: ./gradlew :fladle-plugin:publish --no-daemon
+        run: ./gradlew :fladle-plugin:publish --no-daemon --no-configuration-cache
 
       - name: Push update to branch
         run: |
