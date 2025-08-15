@@ -72,11 +72,25 @@ jobs:
           if [ -n "${{ github.event.inputs.version }}" ]; then
             NEW_VERSION="${{ github.event.inputs.version }}"
           else
-            # Auto-increment version logic - extract current version and increment patch
-            CURRENT_VERSION=$(grep "VERSION_NAME=" gradle.properties | cut -d'=' -f2 | sed 's/-SNAPSHOT//')
-            IFS='.' read -r major minor patch <<< "${CURRENT_VERSION#*-slack}"
-            NEW_PATCH=$((patch + 1))
-            NEW_VERSION="0.18.1-slack$(printf "%02d" $NEW_PATCH)"
+            # Use test version format if on test branch
+            if [[ "${{ github.ref_name }}" == *"test"* ]]; then
+              # Test version format: 0.01-kltest##
+              CURRENT_TEST_VERSION=$(grep "VERSION_NAME=" gradle.properties | grep -o "kltest[0-9]*" || echo "kltest01")
+              if [ "$CURRENT_TEST_VERSION" = "kltest01" ]; then
+                NEW_VERSION="0.01-kltest02"
+              else
+                # Extract number and increment
+                TEST_NUM=$(echo $CURRENT_TEST_VERSION | sed 's/kltest//')
+                NEW_NUM=$((TEST_NUM + 1))
+                NEW_VERSION="0.01-kltest$(printf "%02d" $NEW_NUM)"
+              fi
+            else
+              # Production version logic - extract current version and increment patch
+              CURRENT_VERSION=$(grep "VERSION_NAME=" gradle.properties | cut -d'=' -f2 | sed 's/-SNAPSHOT//')
+              IFS='.' read -r major minor patch <<< "${CURRENT_VERSION#*-slack}"
+              NEW_PATCH=$((patch + 1))
+              NEW_VERSION="0.18.1-slack$(printf "%02d" $NEW_PATCH)"
+            fi
           fi
           
           # Update gradle.properties
@@ -90,16 +104,20 @@ jobs:
       - name: Upload archives
         run: ./gradlew :fladle-plugin:publish --no-daemon
 
-      - name: Push update to main
+      - name: Push update to branch
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add gradle.properties
           git commit -m "CI: Increment version to $NEW_VERSION
           
+          Co-Authored-By: Claude <svc-devxp-claude@slack-corp.com>"
           git tag -a v$NEW_VERSION -m "v$NEW_VERSION"
-          git push origin main
-          git push origin main --tags
+          
+          # Push to current branch (main for production, test branch for testing)
+          CURRENT_BRANCH="${{ github.ref_name }}"
+          git push origin $CURRENT_BRANCH
+          git push origin $CURRENT_BRANCH --tags
 
       # Trigger dispatch in slack-android-ng to update
       - name: Open PR in slack-android-ng by triggering the update-dependency.yml workflow
