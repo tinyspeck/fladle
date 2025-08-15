@@ -1,7 +1,7 @@
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
-group = "com.osacky.flank.gradle"
-version = "0.18.1-SNAPSHOT"
+group = property("GROUP") as String
+version = property("VERSION_NAME") as String
 description = "Easily Scale your Android Instrumentation Tests with Firebase Test Lab with Flank"
 
 repositories {
@@ -62,18 +62,22 @@ val isReleaseBuild : Boolean = !version.toString().endsWith("SNAPSHOT")
 val sonatypeUsername : String? by project
 val sonatypePassword : String? by project
 
-publishing {
+configure<PublishingExtension> {
   repositories {
-    repositories {
-      maven {
-        val releasesRepoUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
-        val snapshotsRepoUrl = uri("https://oss.sonatype.org/content/repositories/snapshots/")
-        url = if (isReleaseBuild) releasesRepoUrl else snapshotsRepoUrl
-        credentials {
-          username = sonatypeUsername
-          password = sonatypePassword
-        }
-      }
+    maven {
+      name = "SlackArtifactory"
+      val url = "https://slack.jfrog.io/slack/libs-release-local"
+      val snapshotUrl = "https://slack.jfrog.io/slack/libs-snapshot-local"
+      val testUrl = "https://httpbin.org/post"  // Fake URL for testing
+      val versionName = findProperty("VERSION_NAME").toString()
+//      setUrl(if (versionName.endsWith("-SNAPSHOT")) snapshotUrl else url)
+
+      // Use fake URL if on test branch, otherwise use real URLs
+      val currentBranch = System.getenv("GITHUB_REF_NAME") ?: "unknown"
+      setUrl(if (currentBranch.contains("test")) testUrl 
+             else if (versionName.endsWith("-SNAPSHOT")) snapshotUrl 
+             else url)
+      credentials(PasswordCredentials::class.java)
     }
   }
   publications {

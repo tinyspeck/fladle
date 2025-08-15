@@ -1,0 +1,113 @@
+name: Publish Artifacts
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (leave blank to auto-increment)"
+        required: false
+      openPr:
+        type: boolean
+        description: "Open a PR on slack-android-ng"
+        required: false
+        default: true
+
+concurrency:
+  group: 'fladle-main'
+
+env:
+  ORG_GRADLE_PROJECT_artifactory_user: ${{ secrets.ARTIFACTORY_USER }}
+  ORG_GRADLE_PROJECT_artifactory_password: ${{ secrets.ARTIFACTORY_PASSWORD }}
+  GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if re-run
+        run: |
+          if [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+             echo "Cannot re-run a publish."
+             exit 1
+           else
+             echo "Starting"
+           fi
+           
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SLACK_OSS_GITHUB_TOKEN }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      # Save the previous latest git tag for use in the changelog step later
+      - name: Get previous tag
+        id: previous-tag
+        run: |
+          git fetch --tags origin
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          echo "tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      # Check if there has been any changes from the previous release
+      - name: Verify has changes
+        id: verify-changes
+        if: github.event.inputs.version == ''
+        run: |
+          changes=$(git rev-list ${{ steps.previous-tag.outputs.tag }}...HEAD)
+          if [[ -z $changes ]]; then
+            echo "No changes from previous version ${{ steps.previous-tag.outputs.tag }}"
+            exit 1
+          fi
+
+      - name: Increment version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            NEW_VERSION="${{ github.event.inputs.version }}"
+          else
+            # Auto-increment version logic - extract current version and increment patch
+            CURRENT_VERSION=$(grep "VERSION_NAME=" gradle.properties | cut -d'=' -f2 | sed 's/-SNAPSHOT//')
+            IFS='.' read -r major minor patch <<< "${CURRENT_VERSION#*-slack}"
+            NEW_PATCH=$((patch + 1))
+            NEW_VERSION="0.18.1-slack$(printf "%02d" $NEW_PATCH)"
+          fi
+          
+          # Update gradle.properties
+          sed -i "s/VERSION_NAME=.*/VERSION_NAME=$NEW_VERSION/" gradle.properties
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "Updated version to: $NEW_VERSION"
+
+      - name: Build and test
+        run: ./gradlew check --no-daemon
+
+      - name: Upload archives
+        run: ./gradlew :fladle-plugin:publish --no-daemon
+
+      - name: Push update to main
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add gradle.properties
+          git commit -m "CI: Increment version to $NEW_VERSION
+          
+          git tag -a v$NEW_VERSION -m "v$NEW_VERSION"
+          git push origin main
+          git push origin main --tags
+
+      # Trigger dispatch in slack-android-ng to update
+      - name: Open PR in slack-android-ng by triggering the update-dependency.yml workflow
+        if: github.event.inputs.openPr == 'true'
+        run: |
+          curl \
+            -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: bearer ${{ secrets.SLACK_OSS_GITHUB_TOKEN }}" \
+            https://api.github.com/repos/tinyspeck/slack-android-ng/actions/workflows/update-dependency.yml/dispatches \
+            -d '{"ref":"main","inputs":{"coordinates":"fladle","version":"${{ env.NEW_VERSION }}","reviewers":"${{ github.actor }}","prDescription":""}}'
