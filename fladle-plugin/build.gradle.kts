@@ -1,7 +1,7 @@
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
-group = "com.osacky.flank.gradle"
-version = "0.18.1-SNAPSHOT"
+group = property("GROUP") as String
+version = property("VERSION_NAME") as String
 description = "Easily Scale your Android Instrumentation Tests with Firebase Test Lab with Flank"
 
 repositories {
@@ -62,18 +62,15 @@ val isReleaseBuild : Boolean = !version.toString().endsWith("SNAPSHOT")
 val sonatypeUsername : String? by project
 val sonatypePassword : String? by project
 
-publishing {
+configure<PublishingExtension> {
   repositories {
-    repositories {
-      maven {
-        val releasesRepoUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
-        val snapshotsRepoUrl = uri("https://oss.sonatype.org/content/repositories/snapshots/")
-        url = if (isReleaseBuild) releasesRepoUrl else snapshotsRepoUrl
-        credentials {
-          username = sonatypeUsername
-          password = sonatypePassword
-        }
-      }
+    maven {
+      name = "SlackArtifactory"
+      val url = "https://slack.jfrog.io/slack/libs-release-local"
+      val snapshotUrl = "https://slack.jfrog.io/slack/libs-snapshot-local"
+      val versionName = findProperty("VERSION_NAME").toString()
+      setUrl(if (versionName.endsWith("-SNAPSHOT")) snapshotUrl else url)
+      credentials(PasswordCredentials::class.java)
     }
   }
   publications {
@@ -133,11 +130,11 @@ tasks.withType(ValidatePlugins::class.java).configureEach {
 }
 
 // Ensure Java 11 Compatibility. See https://github.com/runningcode/fladle/issues/246
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-  kotlinOptions {
-    jvmTarget = "11"
-    languageVersion = "1.7"
-    apiVersion = "1.7"
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+  compilerOptions {
+    languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+    apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
   }
 }
 
